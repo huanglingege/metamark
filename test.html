@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetaMask BSC Balance</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.0/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+    <h1>查询 BSC 余额</h1>
+    <button id="connectButton">连接钱包</button>
+    <p>钱包地址: <span id="walletAddress">未连接</span></p>
+    <p>余额: <span id="balance">未查询</span></p>
+
+    <script>
+        let signer;
+        let userAddress;
+
+        // 检查 MetaMask 是否安装
+        if (typeof window.ethereum === 'undefined') {
+            alert('请安装 MetaMask 插件');
+        }
+
+        // 使用 Ethers.js 初始化提供者（provider）
+        const provider = new ethers.BrowserProvider(window.ethereum);
+
+        // 连接钱包并查询余额
+        document.getElementById('connectButton').addEventListener('click', async () => {
+            try {
+                // 请求连接钱包
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+                // 获取用户地址
+                signer = provider.getSigner();
+                userAddress = await signer.getAddress();
+                document.getElementById('walletAddress').textContent = userAddress;
+
+                // 切换到 BSC 网络
+                await switchToBSCNetwork();
+
+                // 获取 BSC 钱包余额
+                const balanceWei = await provider.getBalance(userAddress);
+                const balanceBNB = ethers.formatEther(balanceWei); // 将 Wei 转换为 BNB
+                document.getElementById('balance').textContent = `${balanceBNB} BNB`;
+            } catch (error) {
+                console.error('连接或查询失败:', error);
+                alert('发生错误，请重试');
+            }
+        });
+
+        // 切换到 Binance Smart Chain 网络
+        async function switchToBSCNetwork() {
+            const chainId = '0x38'; // BSC 主网链ID
+            const chainData = {
+                chainId: chainId,
+                chainName: 'Binance Smart Chain',
+                rpcUrls: ['https://bsc-dataseed1.binance.org:443'],
+                nativeCurrency: {
+                    name: 'BNB',
+                    symbol: 'BNB',
+                    decimals: 18
+                },
+                blockExplorerUrls: ['https://bscscan.com']
+            };
+            
+            try {
+                // 尝试切换网络，如果已经是 BSC 网络，则跳过
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId }]
+                });
+            } catch (switchError) {
+                // 如果没有添加 BSC 网络，可以请求添加
+                if (switchError.code === 4902) {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [chainData]
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>
