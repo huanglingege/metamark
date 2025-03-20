@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MetaMask BSC Balance</title>
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.0/dist/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.6.1/dist/web3.min.js"></script>
 </head>
 <body>
     <h1>查询 BSC 余额</h1>
@@ -13,16 +13,15 @@
     <p>余额: <span id="balance">未查询</span></p>
 
     <script>
-        let signer;
-        let userAddress;
-
-        // 检查 MetaMask 是否安装
-        if (typeof window.ethereum === 'undefined') {
+        // 检查是否有 MetaMask 插件
+        if (typeof window.ethereum !== 'undefined') {
+            console.log('MetaMask 插件已安装');
+        } else {
             alert('请安装 MetaMask 插件');
         }
 
-        // 使用 Ethers.js 初始化提供者（provider）
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        // 初始化 Web3 实例
+        const web3 = new Web3(window.ethereum);
 
         // 连接钱包并查询余额
         document.getElementById('connectButton').addEventListener('click', async () => {
@@ -30,55 +29,25 @@
                 // 请求连接钱包
                 await window.ethereum.request({ method: 'eth_requestAccounts' });
 
-                // 获取用户地址
-                signer = provider.getSigner();
-                userAddress = await signer.getAddress();
-                document.getElementById('walletAddress').textContent = userAddress;
+                // 获取连接的钱包地址
+                const accounts = await web3.eth.getAccounts();
+                const walletAddress = accounts[0];
+                document.getElementById('walletAddress').textContent = walletAddress;
 
-                // 切换到 BSC 网络
-                await switchToBSCNetwork();
-
-                // 获取 BSC 钱包余额
-                const balanceWei = await provider.getBalance(userAddress);
-                const balanceBNB = ethers.formatEther(balanceWei); // 将 Wei 转换为 BNB
-                document.getElementById('balance').textContent = `${balanceBNB} BNB`;
-            } catch (error) {
-                console.error('连接或查询失败:', error);
-                alert('发生错误，请重试');
-            }
-        });
-
-        // 切换到 Binance Smart Chain 网络
-        async function switchToBSCNetwork() {
-            const chainId = '0x38'; // BSC 主网链ID
-            const chainData = {
-                chainId: chainId,
-                chainName: 'Binance Smart Chain',
-                rpcUrls: ['https://bsc-dataseed1.binance.org:443'],
-                nativeCurrency: {
-                    name: 'BNB',
-                    symbol: 'BNB',
-                    decimals: 18
-                },
-                blockExplorerUrls: ['https://bscscan.com']
-            };
-            
-            try {
-                // 尝试切换网络，如果已经是 BSC 网络，则跳过
+                // 设置 BSC 网络（默认是以太坊网络，需要切换到 BSC）
                 await window.ethereum.request({
                     method: 'wallet_switchEthereumChain',
-                    params: [{ chainId }]
+                    params: [{ chainId: '0x38' }]  // BSC 主网的链ID
                 });
-            } catch (switchError) {
-                // 如果没有添加 BSC 网络，可以请求添加
-                if (switchError.code === 4902) {
-                    await window.ethereum.request({
-                        method: 'wallet_addEthereumChain',
-                        params: [chainData]
-                    });
-                }
+
+                // 获取钱包在 BSC 上的余额
+                const balanceWei = await web3.eth.getBalance(walletAddress);
+                const balance = web3.utils.fromWei(balanceWei, 'ether');
+                document.getElementById('balance').textContent = `${balance} BNB`;
+            } catch (error) {
+                console.error('连接或查询失败:', error);
             }
-        }
+        });
     </script>
 </body>
 </html>
